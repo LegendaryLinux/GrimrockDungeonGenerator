@@ -6,7 +6,7 @@ from lib.DungeonTile import DungeonTile
 class DungeonFloor:
     TOTAL_AREA = 32 * 32
     MIN_ROOMS = 6
-    MAX_ROOMS = 24
+    MAX_ROOMS = 18
 
     floor_number = None
     floor_grid = []
@@ -14,15 +14,16 @@ class DungeonFloor:
     def __init__(self, floor_number: int):
         # Generate the initial empty floor grid
         for x in range(0, 32):
+            self.floor_grid.append([])
             for y in range(0, 32):
-                self.floor_grid[x][y] = None
+                self.floor_grid[x].append(None)
 
         # Determine the number of desired rooms on this floor
         room_count = random.randint(self.MIN_ROOMS, self.MAX_ROOMS)
 
         # Create rooms
         remaining_area = self.TOTAL_AREA * .075  # Leave room for connectors, alcoves, secrets, etc
-        for room in range(0, room_count + 1):
+        for room in range(0, room_count):
             # Determine how large this room will be
             room_width = random.randint(2, 8)
             room_height = random.randint(2, 8)
