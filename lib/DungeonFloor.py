@@ -1,3 +1,4 @@
+import logging
 import random
 
 from lib.DungeonTile import DungeonTile
@@ -5,7 +6,7 @@ from lib.DungeonTile import DungeonTile
 
 class DungeonFloor:
     TOTAL_AREA = 32 * 32
-    MIN_ROOMS = 6
+    MIN_ROOMS = 8
     MAX_ROOMS = 18
 
     floor_number = None
@@ -22,7 +23,7 @@ class DungeonFloor:
         room_count = random.randint(self.MIN_ROOMS, self.MAX_ROOMS)
 
         # Create rooms
-        remaining_area = self.TOTAL_AREA * .075  # Leave room for connectors, alcoves, secrets, etc
+        remaining_area = self.TOTAL_AREA * .75  # Leave room for connectors, alcoves, secrets, etc
         for room in range(0, room_count):
             # Determine how large this room will be
             room_width = random.randint(2, 8)
@@ -41,8 +42,11 @@ class DungeonFloor:
             # In these cases, we simply do skip placing this room
             if occupied_grids is None and alcove_grids is None:
                 print(f"Unable to place room with dimensions ({room_width}, {room_height}) on floor {floor_number}.")
+                continue
 
-    def determine_room_placement(self, width, height, alcove_size):
+            remaining_area -= room_area
+
+    def determine_room_placement(self, width: int, height: int, alcove_size: int):
         # Effective width and height of the room. If an alcove is present, either may be increased to ensure
         # enough room is reserved for the alcove to be placed
         effective_width = width
@@ -114,7 +118,9 @@ class DungeonFloor:
 
         return True
 
-    def place_room(self, x_pos, y_pos, width, height, alcove_placement, alcove_size):
+    def place_room(self, x_pos: int, y_pos: int, width: int, height: int, alcove_placement: int, alcove_size: int):
+        logging.debug(f"Placing room with size ({height}, {width}) at [{y_pos}, {x_pos}] with alcove size" +
+                      " {alcove_size}, placement {alcove_placement}.")
         occupied_grids = []
         alcove_grids = []
         for x in range(x_pos, x_pos + width):
@@ -126,18 +132,18 @@ class DungeonFloor:
 
         # Place the alcove in the expanded width
         if alcove_placement == 1:
-            alcove_x = random.randint(x_pos, x_pos + width - alcove_size)
-            alcove_y = y_pos + (height - 1)
-            for i in range(alcove_x, alcove_x + alcove_size):
-                self.floor_grid[i][alcove_y] = DungeonTile(is_alcove=True)
-                alcove_grids.append([i, alcove_y])
-
-        # Place the alcove in the expanded height
-        if alcove_placement == 2:
-            alcove_x = x_pos + (width - 1)
+            alcove_x = x_pos + width
             alcove_y = random.randint(y_pos, y_pos + height - alcove_size)
             for i in range(alcove_y, alcove_y + alcove_size):
                 self.floor_grid[alcove_x][i] = DungeonTile(is_alcove=True)
                 alcove_grids.append([alcove_x, i])
+
+        # Place the alcove in the expanded height
+        if alcove_placement == 2:
+            alcove_x = random.randint(x_pos, x_pos + width - alcove_size)
+            alcove_y = y_pos + height
+            for i in range(alcove_x, alcove_x + alcove_size):
+                self.floor_grid[i][alcove_y] = DungeonTile(is_alcove=True)
+                alcove_grids.append([i, alcove_y])
 
         return occupied_grids, alcove_grids
