@@ -6,7 +6,7 @@ from lib.DungeonTile import DungeonTile
 
 class DungeonFloor:
     TOTAL_AREA = 32 * 32
-    MIN_ROOMS = 8
+    MIN_ROOMS = 10
     MAX_ROOMS = 18
 
     floor_number = None
@@ -66,8 +66,8 @@ class DungeonFloor:
             effective_height += 1
 
         # Pick a random starting point on the grid where it might be possible to place this room.
-        # If the room can be placed in that location, place it there. Attempt this random placement ten times.
-        for i in range(1, 11):
+        # If the room can be placed in that location, place it there. Attempt this random placement twenty-five times.
+        for i in range(1, 26):
             x_pos = random.randint(0, 31 - effective_width)
             y_pos = random.randint(0, 31 - effective_height)
 
