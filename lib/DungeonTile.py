@@ -1,7 +1,11 @@
+from lib.HelperMethods import generate_id
+
+
 class DungeonTile:
+    tile_id = None
+    room_id = None
+
     # Info
-    is_alcove = None
-    is_connector = None
     has_pitfall = None
     has_stairs = None
     has_teleporter = None
@@ -14,5 +18,6 @@ class DungeonTile:
     can_move_up = None
     can_move_down = None
 
-    def __init__(self, is_alcove: bool):
-        self.is_alcove = is_alcove
+    def __init__(self, room_id: str):
+        self.tile_id = generate_id()
+        self.room_id = room_id
