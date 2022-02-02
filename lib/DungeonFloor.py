@@ -1,5 +1,6 @@
 import logging
 import random
+from math import sqrt
 
 from lib.DungeonRoom import DungeonRoom
 from lib.DungeonTile import DungeonTile
@@ -44,7 +45,8 @@ class DungeonFloor:
             # Occasionally the generator may create a room layout which is highly inefficient in its use of space.
             # In these cases, we simply do skip placing this room
             if create_room_args is None:
-                print(f"Unable to place room with dimensions ({room_width}, {room_height}) on floor {floor_number}.")
+                logging.debug(f"Unable to place room with dimensions ({room_width}, {room_height}) " +
+                              f"on floor {floor_number}.")
                 continue
 
             # Save tiles, save room, reduce the remaining area
@@ -52,7 +54,11 @@ class DungeonFloor:
             self.rooms[new_room.room_id] = new_room
             remaining_area -= room_area
 
-        # TODO: Connect all rooms with paths or teleporters
+        # Connect all rooms with a path
+        room_keys = tuple(self.rooms.keys())
+        self.rooms[room_keys[0]].set_connected(True)
+        for i in range(1, len(room_keys)):
+            self.connect_room(room_keys[i - 1], room_keys[i])
 
     def determine_room_placement(self, width: int, height: int, alcove_size: int):
         # Effective width and height of the room. If an alcove is present, either may be increased to ensure
@@ -158,3 +164,48 @@ class DungeonFloor:
             self.tiles[new_tile.tile_id] = new_tile
 
         return new_room
+
+    @staticmethod
+    def find_closest_tiles(room_a: DungeonRoom, room_b: DungeonRoom):
+        # TODO: Optimize me!
+        a_coord_final = None
+        b_coord_final = None
+        shortest_distance = None
+        for a_coord in room_a.occupied_tiles:
+            for b_coord in room_b.occupied_tiles:
+                distance = sqrt((a_coord[0] - b_coord[0])**2 + (a_coord[1] - b_coord[1])**2)
+                if (shortest_distance is None) or (distance < shortest_distance):
+                    shortest_distance = distance
+                    a_coord_final = a_coord
+                    b_coord_final = b_coord
+
+        return a_coord_final, b_coord_final
+
+    def connect_room(self, room_id_a: str, room_id_b: str):
+        # Find the two tiles with the shortest distance between the two rooms
+        room_a = self.rooms[room_id_a]
+        room_b = self.rooms[room_id_b]
+
+        # Room A must be considered connected already
+        if not room_a.connected:
+            raise Exception(f"Room A with id {room_id_a} is not connected.")
+
+        # If room has already been connected, no action is necessary
+        if room_b.connected:
+            return
+
+        start_coord, end_coord = self.find_closest_tiles(room_a, room_b)
+
+        # Traverse X-coords until another tile is found, or until they match
+        increment = 1 if start_coord[0] < end_coord[0] else -1
+        current_x = start_coord[0]
+        while current_x != end_coord[0]:
+            # TODO: Analyze adjacent tiles and determine if a connector should be added here
+            current_x += increment
+
+        # Traverse Y-coords until another tile is found, or until they match
+        increment = 1 if start_coord[1] < end_coord[1] else -1
+        current_y = start_coord[1]
+        while current_y != end_coord[1]:
+            # TODO: Analyze adjacent tiles and determine if a connector should be added here
+            current_y += increment

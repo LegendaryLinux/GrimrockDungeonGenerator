@@ -9,6 +9,7 @@ class DungeonTile:
     has_pitfall = None
     has_stairs = None
     has_teleporter = None
+    is_connector = None
 
     # Movement
     can_move_north = None
@@ -18,6 +19,7 @@ class DungeonTile:
     can_move_up = None
     can_move_down = None
 
-    def __init__(self, room_id: str):
+    def __init__(self, room_id: str = None, is_connector: bool = False):
         self.tile_id = generate_id()
         self.room_id = room_id
+        self.is_connector = is_connector
