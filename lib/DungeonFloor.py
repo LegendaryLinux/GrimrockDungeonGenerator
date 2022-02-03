@@ -8,8 +8,8 @@ from lib.DungeonTile import DungeonTile
 
 class DungeonFloor:
     TOTAL_AREA = 32 * 32
-    MIN_ROOMS = 10
-    MAX_ROOMS = 18
+    MIN_ROOMS = 6
+    MAX_ROOMS = 6
 
     floor_number = None
     floor_grid = []
@@ -182,13 +182,20 @@ class DungeonFloor:
         return a_coord_final, b_coord_final
 
     def connect_room(self, room_id_a: str, room_id_b: str):
+        # If this functions attempts a recursion where the start room is the same as the destination room,
+        # simply do nothing. This can occur if the algorithm is analyzing a path which is one coordinate
+        # apart on either axis.
+        if room_id_a == room_id_b:
+            return
+
         # Find the two tiles with the shortest distance between the two rooms
         room_a = self.rooms[room_id_a]
         room_b = self.rooms[room_id_b]
 
         # Room A must be considered connected already
         if not room_a.connected:
-            raise Exception(f"Room A with id {room_id_a} is not connected.")
+            # raise Exception(f"Room A with id {room_id_a} is not connected.")
+            logging.debug(f"Room A with id {room_id_a} is not connected.")
 
         # If room has already been connected, no action is necessary
         if room_b.connected:
@@ -200,12 +207,144 @@ class DungeonFloor:
         increment = 1 if start_coord[0] < end_coord[0] else -1
         current_x = start_coord[0]
         while current_x != end_coord[0]:
-            # TODO: Analyze adjacent tiles and determine if a connector should be added here
+            # Analyze adjacent tiles and determine if a connector should be added here
             current_x += increment
+
+            # Target coordinate reached, pathfinding for this axis is complete
+            if current_x == end_coord[0]:
+                break
+
+            # Determine if this coordinate is a tile
+            if self.floor_grid[current_x][start_coord[1]] is not None:
+                # Determine if this tile is part of a room
+                if self.tiles[self.floor_grid[current_x][start_coord[1]]].room_id is not None:
+                    discovered_room = self.rooms[self.tiles[self.floor_grid[current_x][start_coord[1]]].room_id]
+
+                    # If the discovered room is the starting room, continue
+                    if discovered_room.room_id == room_id_a:
+                        continue
+
+                    # Mark this discovered room as connected if it is not already
+                    if not discovered_room.connected:
+                        discovered_room.set_connected(True)
+
+                    # Determine if this room contains the target coordinates
+                    for tile in discovered_room.occupied_tiles:
+                        if tile[0] == end_coord[0] and tile[1] == end_coord[1]:
+                            # This room contains the target coordinates, room connection is successful
+                            return
+
+                    # Restart pathfinding from this room
+                    return self.connect_room(discovered_room.room_id, room_id_b)
+
+                else:
+                    # This tile is not part of a room, which means it is a connector. Connectors are allowed
+                    # to cris-cross with each other, so no action is necessary
+                    pass
+
+            else:
+                # This coordinate is not a tile, but is on the way to the destination. Place a tile here
+                new_tile = DungeonTile(room_id=None, is_connector=True)
+                self.floor_grid[current_x][start_coord[1]] = new_tile.tile_id
+                self.tiles[new_tile.tile_id] = new_tile
+
+            # Analyze the adjacent Y-coords to determine if either of those are rooms
+            for y_coord in (start_coord[1]-1, start_coord[1]+1):
+                # Ignore coordinates which would be off the grid
+                if y_coord < 0 or y_coord > 31:
+                    continue
+
+                # Determine if a tile exists at this coordinate
+                if self.floor_grid[current_x][y_coord] is not None:
+                    # Determine if this tile is part of a room
+                    if self.tiles[self.floor_grid[current_x][y_coord]].room_id:
+                        discovered_room = self.rooms[self.tiles[self.floor_grid[current_x][y_coord]].room_id]
+
+                        # If the discovered room is the starting room, continue
+                        if discovered_room.room_id == room_id_a:
+                            continue
+
+                        # Mark this discovered room as connected if it is not already
+                        if not discovered_room.connected:
+                            discovered_room.set_connected(True)
+
+                        # Restart pathfinding from this newly discovered room
+                        return self.connect_room(discovered_room.room_id, room_id_b)
+
+                    else:
+                        # This tile is not part of a room, which means it is a connector. Connectors are allowed
+                        # to cris-cross with each other, so no action is necessary
+                        pass
 
         # Traverse Y-coords until another tile is found, or until they match
         increment = 1 if start_coord[1] < end_coord[1] else -1
         current_y = start_coord[1]
         while current_y != end_coord[1]:
-            # TODO: Analyze adjacent tiles and determine if a connector should be added here
+            # Analyze adjacent tiles and determine if a connector should be added here
             current_y += increment
+
+            # Target coordinate reached, pathfinding for this axis is complete
+            if current_y == end_coord[1]:
+                return
+
+            # Determine if this coordinate is a tile
+            if self.floor_grid[end_coord[0]][current_y] is not None:
+                # Determine if this tile is part of a room
+                if self.tiles[self.floor_grid[end_coord[0]][current_y]].room_id is not None:
+                    discovered_room = self.rooms[self.tiles[self.floor_grid[end_coord[0]][current_y]].room_id]
+
+                    # If the discovered room is the starting room, continue
+                    if discovered_room.room_id == room_id_a:
+                        continue
+
+                    # Mark this discovered room as connected if it is not already
+                    if not discovered_room.connected:
+                        discovered_room.set_connected(True)
+
+                    # Determine if this room contains the target coordinates
+                    for tile in discovered_room.occupied_tiles:
+                        if tile[0] == end_coord[0] and tile[1] == end_coord[1]:
+                            # This room contains the target coordinates, room connection is successful
+                            return
+
+                    # Restart pathfinding from this room
+                    return self.connect_room(discovered_room.room_id, room_id_b)
+
+                else:
+                    # This tile is not part of a room, which means it is a connector. Connectors are allowed
+                    # to cris-cross with each other, so no action is necessary
+                    pass
+
+            else:
+                # This coordinate is not a tile, but is on the way to the destination. Place a tile here
+                new_tile = DungeonTile(room_id=None, is_connector=True)
+                self.floor_grid[end_coord[0]][current_y] = new_tile.tile_id
+                self.tiles[new_tile.tile_id] = new_tile
+
+            # Analyze the adjacent X-coords to determine if either of those are rooms
+            for x_coord in (start_coord[0] - 1, start_coord[0] + 1):
+                # Ignore coordinates which would be off the grid
+                if x_coord < 0 or x_coord > 31:
+                    continue
+
+                # Determine if a tile exists at this coordinate
+                if self.floor_grid[x_coord][current_y] is not None:
+                    # Determine if this tile is part of a room
+                    if self.tiles[self.floor_grid[x_coord][current_y]].room_id:
+                        discovered_room = self.rooms[self.tiles[self.floor_grid[x_coord][current_y]].room_id]
+
+                        # If the discovered room is the starting room, continue
+                        if discovered_room.room_id == room_id_a:
+                            continue
+
+                        # Mark this discovered room as connected if it is not already
+                        if not discovered_room.connected:
+                            discovered_room.set_connected(True)
+
+                        # Restart pathfinding from this newly discovered room
+                        return self.connect_room(discovered_room.room_id, room_id_b)
+
+                    else:
+                        # This tile is not part of a room, which means it is a connector. Connectors are allowed
+                        # to cris-cross with each other, so no action is necessary
+                        pass
