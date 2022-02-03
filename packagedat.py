@@ -233,7 +233,7 @@ def __create_directory_bytes(directory: list, dungeon_info: DungeonInfo):
     for archive_file in directory:
 
         # fnv1a hash of the filename
-        byte_array = archive_file.file_name_hash.to_bytes(4, "little")
+        byte_array += archive_file.file_name_hash.to_bytes(4, "little")
 
         # position of the start of data in the file
         byte_array += (start_of_data + len(compressed_files)).to_bytes(4, "little")
@@ -278,7 +278,7 @@ def package_dat_file(mod_directory: str) -> bytes:
 if __name__ == '__main__':
     data = package_dat_file(sys.argv[1])
 
-    f = open("../testpackage.dat", "wb")
+    f = open("out/testpackage.dat", "wb")
     f.write(data)
     f.close()
 
