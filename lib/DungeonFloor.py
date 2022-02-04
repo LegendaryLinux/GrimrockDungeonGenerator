@@ -1,6 +1,6 @@
 import logging
+import math
 import random
-from math import sqrt
 
 from lib.DungeonRoom import DungeonRoom
 from lib.DungeonTile import DungeonTile
@@ -53,6 +53,21 @@ class DungeonFloor:
             new_room = self.create_room(*create_room_args)
             self.rooms[new_room.room_id] = new_room
             remaining_area -= room_area
+
+        # Rooms with twenty or more tiles should have some randomly removed
+        for key in tuple(self.rooms.keys()):
+            room = self.rooms[key]
+            # Only rooms with 20 or more tiles are modified
+            if len(room.occupied_tiles) < 20:
+                continue
+
+            # There is a fifteen percent chance to just have a massive empty room
+            if random.randint(0, 99) < 15:
+                room.set_expansive(True)
+                continue
+
+            # Remove a chunk of tiles from the room
+            self.carve_room(room.room_id)
 
         # Connect all rooms with a path
         room_keys = tuple(self.rooms.keys())
@@ -136,6 +151,7 @@ class DungeonFloor:
         logging.debug(f"Placing room with size ({height}, {width}) at [{y_pos}, {x_pos}] with alcove size" +
                       " {alcove_size}, placement {alcove_placement}.")
         occupied_tiles = []
+        alcove_tiles = []
         for x in range(x_pos, x_pos + width):
             for y in range(y_pos, y_pos + height):
                 occupied_tiles.append([x, y])
@@ -147,19 +163,24 @@ class DungeonFloor:
             alcove_x = x_pos + width
             alcove_y = random.randint(y_pos, y_pos + height - alcove_size)
             for i in range(alcove_y, alcove_y + alcove_size):
-                occupied_tiles.append([alcove_x, i])
+                alcove_tiles.append([alcove_x, i])
 
         # Place the alcove in the expanded height
         if alcove_placement == 2:
             alcove_x = random.randint(x_pos, x_pos + width - alcove_size)
             alcove_y = y_pos + height
             for i in range(alcove_x, alcove_x + alcove_size):
-                occupied_tiles.append([i, alcove_y])
+                alcove_tiles.append([i, alcove_y])
 
-        new_room = DungeonRoom(self.floor_number, occupied_tiles)
+        new_room = DungeonRoom(self.floor_number, occupied_tiles + alcove_tiles)
 
         for tile in occupied_tiles:
-            new_tile = DungeonTile(new_room.room_id)
+            new_tile = DungeonTile(room_id=new_room.room_id, is_alcove=False)
+            self.floor_grid[tile[0]][tile[1]] = new_tile.tile_id
+            self.tiles[new_tile.tile_id] = new_tile
+
+        for tile in alcove_tiles:
+            new_tile = DungeonTile(room_id=new_room.room_id, is_alcove=True)
             self.floor_grid[tile[0]][tile[1]] = new_tile.tile_id
             self.tiles[new_tile.tile_id] = new_tile
 
@@ -173,7 +194,7 @@ class DungeonFloor:
         shortest_distance = None
         for a_coord in room_a.occupied_tiles:
             for b_coord in room_b.occupied_tiles:
-                distance = sqrt((a_coord[0] - b_coord[0])**2 + (a_coord[1] - b_coord[1])**2)
+                distance = math.sqrt((a_coord[0] - b_coord[0])**2 + (a_coord[1] - b_coord[1])**2)
                 if (shortest_distance is None) or (distance < shortest_distance):
                     shortest_distance = distance
                     a_coord_final = a_coord
@@ -191,12 +212,12 @@ class DungeonFloor:
         room_b = self.rooms[room_id_b]
 
         # Room A must be considered connected already
-        if not room_a.connected:
+        if not room_a.is_connected:
             # raise Exception(f"Room A with id {room_id_a} is not connected.")
             logging.debug(f"Room A with id {room_id_a} is not connected.")
 
         # If room has already been connected, no action is necessary
-        if room_b.connected:
+        if room_b.is_connected:
             return
 
         start_coord, end_coord = self.find_closest_tiles(room_a, room_b)
@@ -219,7 +240,7 @@ class DungeonFloor:
                         continue
 
                     # Mark this discovered room as connected if it is not already
-                    if not discovered_room.connected:
+                    if not discovered_room.is_connected:
                         discovered_room.set_connected(True)
 
                     # Restart pathfinding from this room
@@ -253,7 +274,7 @@ class DungeonFloor:
                             continue
 
                         # Mark this discovered room as connected if it is not already
-                        if not discovered_room.connected:
+                        if not discovered_room.is_connected:
                             discovered_room.set_connected(True)
 
                         # Restart pathfinding from this newly discovered room
@@ -282,7 +303,7 @@ class DungeonFloor:
                         continue
 
                     # Mark this discovered room as connected if it is not already
-                    if not discovered_room.connected:
+                    if not discovered_room.is_connected:
                         discovered_room.set_connected(True)
 
                     # Restart pathfinding from this room
@@ -316,7 +337,7 @@ class DungeonFloor:
                             continue
 
                         # Mark this discovered room as connected if it is not already
-                        if not discovered_room.connected:
+                        if not discovered_room.is_connected:
                             discovered_room.set_connected(True)
 
                         # Restart pathfinding from this newly discovered room
@@ -326,3 +347,101 @@ class DungeonFloor:
                         # This tile is not part of a room, which means it is a connector. Connectors are allowed
                         # to cris-cross with each other, so no action is necessary
                         pass
+
+    def carve_room(self, room_id):
+        room = self.rooms[room_id]
+
+        # Remove between fifteen and thirty percent of tiles in the room
+        tiles_to_remove = math.ceil(len(room.occupied_tiles) * (random.randint(15, 30) / 100))
+
+        # Find alcove tiles in this room and remove them first, thus converting the room into a rectangle
+        occupied_tiles = room.occupied_tiles.copy()
+        for tile_coords in occupied_tiles:
+            tile = self.tiles[self.floor_grid[tile_coords[0]][tile_coords[1]]]
+            if tile.is_alcove:
+                self.floor_grid[tile_coords[0]][tile_coords[1]] = None
+                room.remove_tile(tile_coords)
+                del self.tiles[tile.tile_id]
+                tiles_to_remove -= 1
+
+        # Analyze the room to determine corner coordinates
+        min_x = max_x = min_y = max_y = None
+        for tile_coords in room.occupied_tiles:
+            min_x = tile_coords[0] if (min_x is None or min_x > tile_coords[0]) else min_x
+            max_x = tile_coords[0] if (max_x is None or max_x < tile_coords[0]) else max_x
+            min_y = tile_coords[1] if (min_y is None or min_y > tile_coords[1]) else min_y
+            max_y = tile_coords[1] if (max_y is None or max_y < tile_coords[1]) else max_y
+
+        algorithm_choice = random.randint(0, 98)
+
+        # Twenty-five percent chance we take the L-Shape algorithm. This removes a set of tiles from the corner
+        # of a room, causing it to take on an L-shape
+        # Addendum:
+        # Sufficiently small rooms aren't viable for more destructive algorithms, so we only use the L-Shape algorithm
+        if (len(room.occupied_tiles) < 31) or (algorithm_choice < 33):
+            square_dimension = math.floor(math.sqrt(tiles_to_remove))
+            remainder = math.ceil(math.sqrt(tiles_to_remove) % square_dimension)
+            reverse = True if (random.randint(0, 1) == 1) else False
+
+            # Determine starting coordinates
+            x_coord = max_x if reverse else min_x
+            y_coord = max_y if reverse else min_y
+            increment = -1 if reverse else 1
+
+            # Traverse horizontally if the room is wider than tall
+            if (max_x - min_x) > (max_y - min_y):
+                # Remove tiles from each coordinate
+                target_x = (x_coord + (square_dimension * increment))
+                while x_coord != target_x:
+                    target_y = (y_coord + (square_dimension * increment))
+                    while y_coord != target_y:
+                        room.remove_tile((x_coord, y_coord))
+                        del self.tiles[self.floor_grid[x_coord][y_coord]]
+                        self.floor_grid[x_coord][y_coord] = None
+                        y_coord += increment
+                    y_coord = max_y if reverse else min_y
+                    x_coord += increment
+
+                # Remove any remaining tiles from the next column, which will always be fewer than
+                # the square_dimension
+                if remainder > 0:
+                    target_y = (y_coord + (remainder * increment))
+                    while y_coord != target_y:
+                        room.remove_tile((x_coord, y_coord))
+                        del self.tiles[self.floor_grid[x_coord][y_coord]]
+                        self.floor_grid[x_coord][y_coord] = None
+                        y_coord += increment
+
+            # Traverse vertically if the room is taller than wide
+            else:
+                # Remove tiles from each coordinate
+                target_y = (y_coord + (square_dimension * increment))
+                while y_coord != target_y:
+                    target_x = (x_coord + (square_dimension * increment))
+                    while x_coord != target_x:
+                        room.remove_tile((x_coord, y_coord))
+                        del self.tiles[self.floor_grid[x_coord][y_coord]]
+                        self.floor_grid[x_coord][y_coord] = None
+                        x_coord += increment
+                    x_coord = max_x if reverse else min_x
+                    y_coord += increment
+
+                # Remove and remaining tiles from the next row, which will always be fewer than
+                # the square dimension
+                if remainder > 0:
+                    target_x = (x_coord + (remainder * increment))
+                    while x_coord != target_x:
+                        room.remove_tile((x_coord, y_coord))
+                        del self.tiles[self.floor_grid[x_coord][y_coord]]
+                        self.floor_grid[x_coord][y_coord] = None
+                        x_coord += increment
+
+            return
+
+        elif algorithm_choice < 66:
+            # TODO: Write the center spiral algorithm
+            pass
+
+        else:
+            # TODO: Write the random block removal algorithm
+            pass
