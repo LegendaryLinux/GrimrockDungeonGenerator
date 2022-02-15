@@ -17,6 +17,7 @@ class DungeonFloor:
     tiles = {}
 
     def __init__(self, floor_number: int):
+        self.floor_number = floor_number
         # Generate the initial empty floor grid
         for x in range(0, 32):
             self.floor_grid.append([])
@@ -46,7 +47,7 @@ class DungeonFloor:
             # In these cases, we simply do skip placing this room
             if create_room_args is None:
                 logging.debug(f"Unable to place room with dimensions ({room_width}, {room_height}) " +
-                              f"on floor {floor_number}.")
+                              f"on floor {self.floor_number}.")
                 continue
 
             # Save tiles, save room, reduce the remaining area
