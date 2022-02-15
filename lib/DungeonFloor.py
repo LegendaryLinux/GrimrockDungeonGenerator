@@ -443,8 +443,14 @@ class DungeonFloor:
         # Ignores the target number of tiles to remove
         elif algorithm_choice < 66:
             square_edge = 3 if (len(room.occupied_tiles) < 16) else 4
-            start_x = random.randint(min_x, max_x - square_edge)
-            start_y = random.randint(min_y, max_y - square_edge)
+            start_x = min_x
+            start_y = min_y
+
+            if min_x == (max_x - square_edge):
+                start_x = random.randint(min_x, max_x - square_edge)
+
+            if min_y == (max_y - square_edge):
+                random.randint(min_y, max_y - square_edge)
 
             for x in range(start_x, start_x + square_edge):
                 for y in range(start_y, start_y + square_edge):
@@ -453,6 +459,31 @@ class DungeonFloor:
                     self.floor_grid[x][y] = None
             return
 
+        # Minimum room size = 31
+        # Random tile removal algorithm
         else:
-            # TODO: Write the random block removal algorithm
+            while tiles_to_remove > 0:
+                # Remove random tiles from the room
+                x, y = room.occupied_tiles[random.randint(0, len(room.occupied_tiles) - 1)]
+
+                # Do not remove the edges of a room in this manner
+                if x == max_x or x == min_x or y == max_y or y == min_y:
+                    continue
+
+                # Remove this tile
+                room.remove_tile((x, y))
+                del self.tiles[self.floor_grid[x][y]]
+                self.floor_grid[x][y] = None
+                tiles_to_remove -= 1
+
+            # Find any inaccessible tiles and remove them
+            for (x, y) in room.occupied_tiles:
+                if \
+                        ((x+1 < 33) and (self.floor_grid[x+1][y] is None)) and \
+                        ((x-1 > 0) and (self.floor_grid[x-1][y] is None)) and \
+                        ((y+1 < 33) and (self.floor_grid[x][y+1] is None)) and \
+                        ((y-1 > 0) and (self.floor_grid[x][y-1] is None)):
+                    room.remove_tile((x, y))
+                    del self.tiles[self.floor_grid[x][y]]
+                    self.floor_grid[x][y] = None
             return
