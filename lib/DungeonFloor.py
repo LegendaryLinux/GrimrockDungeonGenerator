@@ -374,7 +374,7 @@ class DungeonFloor:
 
         algorithm_choice = random.randint(0, 98)
 
-        # Twenty-five percent chance we take the L-Shape algorithm. This removes a set of tiles from the corner
+        # Thirty-three percent chance we take the L-Shape algorithm. This removes a set of tiles from the corner
         # of a room, causing it to take on an L-shape
         # Addendum:
         # Sufficiently small rooms aren't viable for more destructive algorithms, so we only use the L-Shape algorithm
@@ -438,10 +438,21 @@ class DungeonFloor:
 
             return
 
+        # Minimum room size = 31
+        # Remove a 3x3 or 4x4 square from the room, based on total room size
+        # Ignores the target number of tiles to remove
         elif algorithm_choice < 66:
-            # TODO: Write the center spiral algorithm
-            pass
+            square_edge = 3 if (len(room.occupied_tiles) < 16) else 4
+            start_x = random.randint(min_x, max_x - square_edge)
+            start_y = random.randint(min_y, max_y - square_edge)
+
+            for x in range(start_x, start_x + square_edge):
+                for y in range(start_y, start_y + square_edge):
+                    room.remove_tile((x, y))
+                    del self.tiles[self.floor_grid[x][y]]
+                    self.floor_grid[x][y] = None
+            return
 
         else:
             # TODO: Write the random block removal algorithm
-            pass
+            return
