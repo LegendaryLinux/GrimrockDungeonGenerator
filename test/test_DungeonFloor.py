@@ -10,7 +10,7 @@ class TestDungeonFloor(unittest.TestCase):
         for col in floor.floor_grid:
             self.assertEqual(len(col), 32, f"Invalid column count {col} in floor: {len(col)}")
 
-    # Generate fifty thousand floors and make sure they all succeed
+    # Generate one thousand floors and make sure they all succeed
     def test_generation_consistency(self):
-        for i in range(50000):
+        for i in range(1000):
             DungeonFloor(i)

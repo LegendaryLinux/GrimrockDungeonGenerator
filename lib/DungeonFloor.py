@@ -7,17 +7,22 @@ from lib.DungeonTile import DungeonTile
 
 
 class DungeonFloor:
+    # Shared among all class instances
     TOTAL_AREA = 32 * 32
     MIN_ROOMS = 10
     MAX_ROOMS = 18
 
+    # Instance variables
     floor_number = None
-    floor_grid = []
-    rooms = {}
-    tiles = {}
+    floor_grid = None
+    rooms = None
+    tiles = None
 
     def __init__(self, floor_number: int):
         self.floor_number = floor_number
+        self.floor_grid = []
+        self.rooms = {}
+        self.tiles = {}
         # Generate the initial empty floor grid
         for x in range(0, 32):
             self.floor_grid.append([])
