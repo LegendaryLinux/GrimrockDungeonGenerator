@@ -1,5 +1,6 @@
 import unittest
 from lib.DungeonFloor import DungeonFloor
+from time import time
 
 
 class TestDungeonFloor(unittest.TestCase):
@@ -11,6 +12,13 @@ class TestDungeonFloor(unittest.TestCase):
             self.assertEqual(len(col), 32, f"Invalid column count {col} in floor: {len(col)}")
 
     # Generate one thousand floors and make sure they all succeed
-    def test_generation_consistency(self):
-        for i in range(1000):
+    def test_generation_consistency(self, floor_count: int = 10000):
+        start_time = time()
+
+        for i in range(floor_count):
             DungeonFloor(i)
+
+        total_time = time() - start_time
+
+        print(f"Generation completed in {total_time} seconds.")
+        print(f"Average generation time per floor: {total_time / floor_count}")

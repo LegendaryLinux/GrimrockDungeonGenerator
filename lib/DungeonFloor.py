@@ -18,11 +18,16 @@ class DungeonFloor:
     rooms = None
     tiles = None
 
+    # Debugging data
+    last_room_connection_args = None
+    last_room_connection_paths = None
+
     def __init__(self, floor_number: int):
         self.floor_number = floor_number
         self.floor_grid = []
         self.rooms = {}
         self.tiles = {}
+
         # Generate the initial empty floor grid
         for x in range(0, 32):
             self.floor_grid.append([])
@@ -78,8 +83,26 @@ class DungeonFloor:
         # Connect all rooms with a path
         room_keys = tuple(self.rooms.keys())
         self.rooms[room_keys[0]].set_connected(True)
-        for i in range(1, len(room_keys)):
-            self.connect_room(room_keys[i - 1], room_keys[i])
+
+        try:
+            for i in range(1, len(room_keys)):
+                self.last_room_connection_args = (room_keys[i - 1], room_keys[i])
+                self.last_room_connection_paths = []
+                self.connect_room(room_keys[i - 1], room_keys[i])
+        except Exception:
+            print(f"Last room connection coords: ")
+            print(self.rooms[self.last_room_connection_args[0]].occupied_tiles[0])
+            print(self.rooms[self.last_room_connection_args[1]].occupied_tiles[0])
+            print(f"Room connection paths: {self.last_room_connection_paths}")
+
+            for row in self.floor_grid:
+                output = ""
+                for col in row:
+                    tile = self.tiles[col] if col else None
+                    output += ("O " if (tile and tile.is_connector) else ("X " if tile else "- "))
+
+                print(output)
+            raise
 
     def determine_room_placement(self, width: int, height: int, alcove_size: int):
         # Effective width and height of the room. If an alcove is present, either may be increased to ensure
@@ -219,14 +242,17 @@ class DungeonFloor:
 
         # Room A must be considered connected already
         if not room_a.is_connected:
-            # raise Exception(f"Room A with id {room_id_a} is not connected.")
-            logging.debug(f"Room A with id {room_id_a} is not connected.")
+            raise Exception(f"Room A with id {room_id_a} is not connected.")
 
         # If room has already been connected, no action is necessary
         if room_b.is_connected:
             return
 
+        # Find the two tiles with the shortest distance between the rooms
         start_coord, end_coord = self.find_closest_tiles(room_a, room_b)
+
+        # Debugging info
+        self.last_room_connection_paths.append((start_coord, end_coord))
 
         # Traverse X-coords until another tile is found, or until they match
         increment = 1 if start_coord[0] < end_coord[0] else -1
@@ -283,8 +309,17 @@ class DungeonFloor:
                         if not discovered_room.is_connected:
                             discovered_room.set_connected(True)
 
-                        # Restart pathfinding from this newly discovered room
-                        return self.connect_room(discovered_room.room_id, room_id_b)
+                        # Determine the distance to the target coordinate from both the current coordinate
+                        # and the adjacent coordinate
+                        current_distance = math.sqrt(
+                            (current_x - end_coord[0]) ** 2 + (start_coord[1] - end_coord[1]) ** 2)
+                        adjacent_distance = math.sqrt(
+                            (current_x - end_coord[0]) ** 2 + (y_coord - end_coord[1]) ** 2)
+
+                        # If the discovered room's coordinate is closer to the destination than the current
+                        # tile's coordinate, restart pathfinding from the discovered room
+                        if current_distance > adjacent_distance:
+                            return self.connect_room(discovered_room.room_id, room_id_b)
 
                     else:
                         # This tile is not part of a room, which means it is a connector. Connectors are allowed
@@ -346,8 +381,17 @@ class DungeonFloor:
                         if not discovered_room.is_connected:
                             discovered_room.set_connected(True)
 
-                        # Restart pathfinding from this newly discovered room
-                        return self.connect_room(discovered_room.room_id, room_id_b)
+                        # Determine the distance to the target coordinate from both the current coordinate
+                        # and the adjacent coordinate
+                        current_distance = math.sqrt(
+                            (end_coord[0] - end_coord[0]) ** 2 + (current_y - end_coord[1]) ** 2)
+                        adjacent_distance = math.sqrt(
+                            (x_coord - end_coord[0]) ** 2 + (current_y - end_coord[1]) ** 2)
+
+                        # If the discovered room's coordinate is closer to the destination than the current
+                        # tile's coordinate, restart pathfinding from the discovered room
+                        if current_distance > adjacent_distance:
+                            return self.connect_room(discovered_room.room_id, room_id_b)
 
                     else:
                         # This tile is not part of a room, which means it is a connector. Connectors are allowed
