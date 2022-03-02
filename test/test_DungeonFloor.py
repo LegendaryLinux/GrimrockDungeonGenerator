@@ -13,6 +13,7 @@ class TestDungeonFloor(unittest.TestCase):
 
     # Generate one thousand floors and make sure they all succeed
     def test_generation_consistency(self, floor_count: int = 10000):
+        print(f"Generating {floor_count} floors...")
         start_time = time()
 
         for i in range(floor_count):
